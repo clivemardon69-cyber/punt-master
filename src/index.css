@@ -1,0 +1,312 @@
+:root {
+  --bg: #0B2318;
+  --panel: #16482F;      /* lifted from #123626 so cards visibly separate from the page */
+  --border: #3D7F58;     /* brightened from #2A5C41 so edges actually read */
+  --text: #F4EFE3;
+  --muted: #9FB8A8;
+  --muted2: #5C7A6A;
+  --gold: #C9A227;
+  --gold-hover: #DFB933;
+  --red: #E07856;
+  --data: #7FE0AE;       /* reserved for numbers — odds, points — distinct from gold's "act/win" meaning */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  /* Faint mown-turf stripes — just enough to feel like a pitch in the gaps
+     around cards, deliberately too subtle to compete with card content.
+     Straight horizontal bands, like a pitch mown across its width — a
+     diagonal angle here reads as a golf fairway, not a football pitch. */
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.02) 0px, rgba(255, 255, 255, 0.02) 40px,
+      rgba(0, 0, 0, 0.02) 40px, rgba(0, 0, 0, 0.02) 80px
+    ),
+    var(--bg);
+  color: var(--text);
+}
+
+button, input, select {
+  font-family: inherit;
+  font-size: 14px;
+}
+
+button { cursor: pointer; }
+
+.mono {
+  font-family: 'SF Mono', 'Courier New', monospace;
+}
+
+input, select {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 10px 12px;
+  color: var(--text);
+}
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+input::placeholder { color: var(--muted2); }
+
+.btn-gold {
+  background: var(--gold);
+  color: var(--bg);
+  font-weight: 700;
+  border: none;
+  border-radius: 3px;
+  padding: 10px;
+}
+.btn-gold:hover { background: var(--gold-hover); }
+.btn-gold:disabled { opacity: 0.5; }
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-weight: 700;
+  border-radius: 3px;
+  padding: 10px;
+}
+
+/* Leave room at the bottom of every page for the fixed ad board strip
+   plus the pitch/touchline strip that sits above it. */
+body { padding-bottom: 78px; }
+
+/* ============ Big Screen (stadium jumbotron, mounted on a gantry) ============ */
+.big-screen {
+  max-width: 480px;
+  margin: 0 auto 16px;
+  padding: 0 20px;
+}
+.screen-rig {
+  position: relative;
+  padding-top: 22px; /* room for the floodlight glow above the screen */
+}
+/* Floodlights either side of the rig, shining down toward the screen */
+.screen-rig::before, .screen-rig::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 90px;
+  height: 60px;
+  background: radial-gradient(ellipse at center, rgba(244, 250, 220, 0.55), rgba(244, 250, 220, 0) 70%);
+  filter: blur(1px);
+  pointer-events: none;
+  animation: floodlightFlicker 4s ease-in-out infinite;
+}
+.screen-rig::before { left: 4%; }
+.screen-rig::after { right: 4%; animation-delay: 1.7s; }
+@keyframes floodlightFlicker {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.85; }
+}
+/* Support struts "holding up" the screen, like a real gantry */
+.rig-strut {
+  position: absolute;
+  bottom: -12px;
+  width: 8px;
+  height: 14px;
+  background: linear-gradient(#8a9096, #4b5054);
+  border-radius: 0 0 2px 2px;
+}
+.rig-strut-left { left: 26px; }
+.rig-strut-right { right: 26px; }
+
+.big-screen-bezel {
+  position: relative;
+  overflow: hidden;
+  background: #05100a;
+  border: 5px solid transparent;
+  border-radius: 8px;
+  background-image:
+    linear-gradient(#05100a, #05100a),
+    linear-gradient(135deg, #9aa0a4, #34383b 35%, #71767a 55%, #24272a);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  box-shadow:
+    inset 0 0 0 1px rgba(201, 162, 39, 0.2),
+    inset 0 0 30px rgba(0, 0, 0, 0.85),
+    0 6px 16px rgba(0, 0, 0, 0.55);
+  padding: 16px 16px 18px;
+  text-align: center;
+}
+.big-screen-bezel::before {
+  /* faint LED dot-matrix texture, like a real outdoor video wall */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(to right, rgba(255, 255, 255, 0.05) 0px, rgba(255, 255, 255, 0.05) 1px, transparent 1px, transparent 4px),
+    repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 0px, rgba(255, 255, 255, 0.05) 1px, transparent 1px, transparent 4px);
+  pointer-events: none;
+}
+.big-screen-glow {
+  position: absolute;
+  inset: -40% -20%;
+  background: radial-gradient(circle at 50% 0%, rgba(223, 185, 51, 0.18), transparent 60%);
+  animation: bigScreenPulse 3.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes bigScreenPulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+.screen-tag {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--gold-hover);
+  background: transparent;
+  border: 1px solid rgba(223, 185, 51, 0.5);
+  padding: 2px 8px;
+  border-radius: 2px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.big-screen-heading {
+  position: relative;
+  font-family: 'VT323', 'SF Mono', monospace;
+  font-size: 22px;
+  letter-spacing: 2px;
+  color: var(--text);
+  text-shadow: 0 0 8px rgba(244, 239, 227, 0.5);
+  margin-bottom: 8px;
+}
+.big-screen-lines {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.big-screen-line {
+  font-family: 'VT323', 'SF Mono', monospace;
+  font-size: 17px;
+  letter-spacing: 1px;
+  color: #d9f2e2;
+  text-shadow: 0 0 6px rgba(159, 184, 168, 0.5);
+}
+.screen-sponsor {
+  position: relative;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(201, 162, 39, 0.3);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--muted2);
+  text-transform: uppercase;
+}
+
+/* ============ Ad Board (pitch-side hoarding, with the touchline above it) ============ */
+.ad-board {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 14px;
+  background:
+    /* vertical seams every ~150px so it reads as separate boards bolted
+       together, not one continuous banner */
+    repeating-linear-gradient(
+      to right,
+      rgba(0, 0, 0, 0) 0px, rgba(0, 0, 0, 0) 148px,
+      rgba(0, 0, 0, 0.55) 148px, rgba(0, 0, 0, 0.55) 150px
+    ),
+    linear-gradient(180deg, rgba(255,255,255,0.05), transparent 40%),
+    #0a0a0a;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.4);
+}
+/* A strip of mown pitch turf with a whitewashed touchline, sitting right
+   above the hoarding — this is what actually reads as "edge of a football
+   pitch" rather than just a dark bar. */
+.ad-board::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -22px;
+  height: 22px;
+  background: repeating-linear-gradient(
+    110deg,
+    #1c6b3f 0px, #1c6b3f 26px,
+    #2c8952 26px, #2c8952 52px
+  );
+  border-bottom: 4px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.ad-board-tag {
+  flex-shrink: 0;
+  font-size: 9px;
+  color: var(--gold-hover);
+  background: transparent;
+  border: 1px solid rgba(223, 185, 51, 0.5);
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.ad-board-track {
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+.ad-board-slide {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation: adFadeIn 0.4s ease;
+}
+@keyframes adFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ad-board-text {
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--gold-hover);
+  text-transform: uppercase;
+}
+.ad-board-sub {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ad-board-dots {
+  flex-shrink: 0;
+  display: flex;
+  gap: 4px;
+}
+.ad-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.ad-dot.active { background: var(--gold); }
+
+@media (max-width: 380px) {
+  .ad-board-sub { display: none; }
+}
