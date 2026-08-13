@@ -405,18 +405,37 @@ export default function App() {
   // no external AI calls, costs nothing to run.
   function computePlayerForm(playerName) {
     const myAllPicks = predictions.filter(p => p.member_name === playerName)
-    const decided = myAllPicks
+    const withFixture = myAllPicks
       .map(p => ({ pick: p, fixture: fixtures.find(f => f.id === p.fixture_id) }))
-      .filter(x => x.fixture && x.fixture.result)
-      .sort((a, b) => {
-        const at = new Date(a.fixture.kickoff || a.fixture.created_at)
-        const bt = new Date(b.fixture.kickoff || b.fixture.created_at)
-        return bt - at // most recent decided fixture first
-      })
+      .filter(x => x.fixture)
+    const decided = withFixture.filter(x => x.fixture.result)
+
+    // Streak, grouped by kick-off moment rather than individual fixture.
+    // A Saturday afternoon with five simultaneous 3pm kick-offs has no real
+    // "which happened first" — so instead of inventing an order, each
+    // distinct kick-off time is one block: get everything in that block
+    // right and the whole block extends the streak, miss one and the
+    // streak stops there. Well-defined with no arbitrary tiebreak needed.
+    //
+    // Grouped from every pick (not just decided ones) so a slot only ever
+    // gets judged once every pick in it has a result — a half-entered
+    // slot is left out entirely rather than judged early, so the streak
+    // can't quietly drop later once the rest of that slot comes in.
+    const groupsByKickoff = {}
+    withFixture.forEach(d => {
+      const key = d.fixture.kickoff || `no-kickoff-${d.fixture.id}`
+      if (!groupsByKickoff[key]) groupsByKickoff[key] = []
+      groupsByKickoff[key].push(d)
+    })
+    const completeGroups = Object.entries(groupsByKickoff)
+      .filter(([, group]) => group.every(d => d.fixture.result))
+      .sort(([aKey], [bKey]) => new Date(bKey) - new Date(aKey))
+      .map(([, group]) => group)
 
     let streak = 0
-    for (const { pick, fixture } of decided) {
-      if (fixture.result === pick.pick) streak++
+    for (const group of completeGroups) {
+      const allCorrect = group.every(d => d.fixture.result === d.pick.pick)
+      if (allCorrect) streak += group.length
       else break
     }
 
