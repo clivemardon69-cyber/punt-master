@@ -845,13 +845,17 @@ export default function App() {
               ) : standings.map((s, i) => {
                 const expanded = !!expandedMembers[s.member]
                 const breakdown = expanded ? memberBreakdown(s.member, standingsView === 'month' ? isThisMonth : null) : []
+                // Alternating band per player (not per row) so a long scroll
+                // through several people's expanded picks still makes it
+                // obvious where one player's block ends and the next
+                // starts — rank 1 keeps its own gold tint regardless.
+                const bandBg = i === 0 ? 'rgba(201,162,39,0.1)' : (i % 2 === 1 ? 'rgba(255,255,255,0.025)' : 'transparent')
                 return (
-                  <div key={s.member} style={{ borderBottom: i !== standings.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                  <div key={s.member} style={{ borderBottom: i !== standings.length - 1 ? '1px solid var(--border)' : 'none', background: bandBg }}>
                     <div
                       onClick={() => setExpandedMembers(prev => ({ ...prev, [s.member]: !prev[s.member] }))}
                       style={{
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', cursor: 'pointer',
-                        background: i === 0 ? 'rgba(201,162,39,0.1)' : 'transparent'
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', cursor: 'pointer'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
