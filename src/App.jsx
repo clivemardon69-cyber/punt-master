@@ -626,13 +626,12 @@ export default function App() {
           </div>
           <button onClick={refresh} style={{ background: 'none', border: 'none', color: 'var(--muted)', marginLeft: 12 }}><RefreshCw size={16} /></button>
         </div>
-        <div style={{ maxWidth: 480, margin: '0 auto', textAlign: 'right' }}>
-          <button onClick={switchPlayer} className="mono" style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, padding: 0, marginTop: -4 }}>
-            Not {name}? Sign out / switch player
+        <div style={{ maxWidth: 480, margin: '4px auto 0', display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', columnGap: 8, rowGap: 2 }}>
+          <button onClick={switchPlayer} className="mono" style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, padding: 0 }} title="Sign out / switch player">
+            Not {name}? Sign out
           </button>
-          <span style={{ color: 'var(--muted)', fontSize: 10, margin: '0 6px' }}>·</span>
-          <button onClick={startNewLeague} className="mono" style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, padding: 0, marginTop: -4 }}>
-            Set up a new league
+          <button onClick={startNewLeague} className="mono" style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, padding: 0 }}>
+            · New league
           </button>
         </div>
       </div>
