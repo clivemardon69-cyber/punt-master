@@ -631,7 +631,7 @@ export default function App() {
           <>
           {error && <p style={{ color: 'var(--red)', fontSize: 12, marginBottom: 12 }}>{error}</p>}
 
-          {(myForm.streak >= 2 || myForm.accuracy !== null || myForm.profile) && (
+          {[myForm.streak >= 2, myForm.accuracy !== null, !!myForm.profile].filter(Boolean).length >= 2 && (
             <div style={{
               display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16,
               background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 3, padding: '10px 12px'
