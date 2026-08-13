@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Trophy, Users, Plus, LogIn, RefreshCw, Stamp, Trash2, UserMinus } from 'lucide-react'
+import { Trophy, Users, Plus, LogIn, RefreshCw, Stamp, Trash2, UserMinus, ChevronLeft, Flame, Target, Compass } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import AdBoard from './AdBoard'
 import BigScreen from './BigScreen'
@@ -399,6 +399,48 @@ export default function App() {
   }
   const monthLabel = now.toLocaleDateString('en-GB', { month: 'long' })
 
+  // Personal form summary — streak, accuracy, and a "risk profile" archetype
+  // based on how favoured/unfavoured the player's picks tend to be. All
+  // computed client-side from data already loaded — no extra requests,
+  // no external AI calls, costs nothing to run.
+  function computePlayerForm(playerName) {
+    const myAllPicks = predictions.filter(p => p.member_name === playerName)
+    const decided = myAllPicks
+      .map(p => ({ pick: p, fixture: fixtures.find(f => f.id === p.fixture_id) }))
+      .filter(x => x.fixture && x.fixture.result)
+      .sort((a, b) => {
+        const at = new Date(a.fixture.kickoff || a.fixture.created_at)
+        const bt = new Date(b.fixture.kickoff || b.fixture.created_at)
+        return bt - at // most recent decided fixture first
+      })
+
+    let streak = 0
+    for (const { pick, fixture } of decided) {
+      if (fixture.result === pick.pick) streak++
+      else break
+    }
+
+    const correctCount = decided.filter(d => d.fixture.result === d.pick.pick).length
+    const accuracy = decided.length ? Math.round((correctCount / decided.length) * 100) : null
+
+    const oddsValues = myAllPicks
+      .map(p => {
+        const fixture = fixtures.find(f => f.id === p.fixture_id)
+        if (!fixture) return null
+        return { H: fixture.odds_home, D: fixture.odds_draw, A: fixture.odds_away }[p.pick]
+      })
+      .filter(o => o !== null && o !== undefined)
+
+    let profile = null
+    if (oddsValues.length >= 3) {
+      const avgOdds = oddsValues.reduce((a, b) => a + b, 0) / oddsValues.length
+      profile = avgOdds < 2.2 ? 'The Favourite Backer' : avgOdds > 4 ? 'The Underdog Hunter' : 'The Balanced Picker'
+    }
+
+    return { streak, decidedCount: decided.length, accuracy, profile }
+  }
+  const myForm = computePlayerForm(name)
+
   // ---------- render: resuming ----------
   if (resuming) {
     return (
@@ -531,10 +573,17 @@ export default function App() {
     <div style={{ minHeight: '100vh', paddingBottom: 60 }}>
       <div style={{ background: 'var(--panel)', borderBottom: '1px solid var(--border)', padding: '16px 20px', position: 'sticky', top: 0 }}>
         <div style={{ maxWidth: 480, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div className="mono" style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase' }}>League</div>
-            <div style={{ fontWeight: 900, fontSize: 18 }}>{league.name}</div>
-          </div>
+          <button
+            onClick={() => { setTab('picks'); setViewedGwNumber(null) }}
+            style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+            title="Back to the current gameweek"
+          >
+            <ChevronLeft size={16} style={{ color: 'var(--muted)', flexShrink: 0 }} />
+            <div>
+              <div className="mono" style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase' }}>League</div>
+              <div style={{ fontWeight: 900, fontSize: 18, color: 'var(--text)', textDecoration: 'underline', textDecorationColor: 'var(--muted2)', textUnderlineOffset: 3 }}>{league.name}</div>
+            </div>
+          </button>
           <div style={{ textAlign: 'right' }}>
             <div className="mono" style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase' }}>Code</div>
             <div className="mono" style={{ fontWeight: 700, color: 'var(--gold)', letterSpacing: 2 }}>{league.code}</div>
@@ -542,11 +591,11 @@ export default function App() {
           <button onClick={refresh} style={{ background: 'none', border: 'none', color: 'var(--muted)', marginLeft: 12 }}><RefreshCw size={16} /></button>
         </div>
         <div style={{ maxWidth: 480, margin: '0 auto', textAlign: 'right' }}>
-          <button onClick={switchPlayer} className="mono" style={{ background: 'none', border: 'none', color: 'var(--muted2)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, padding: 0, marginTop: -4 }}>
+          <button onClick={switchPlayer} className="mono" style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, padding: 0, marginTop: -4 }}>
             Not {name}? Sign out / switch player
           </button>
-          <span style={{ color: 'var(--muted2)', fontSize: 10, margin: '0 6px' }}>·</span>
-          <button onClick={startNewLeague} className="mono" style={{ background: 'none', border: 'none', color: 'var(--muted2)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, padding: 0, marginTop: -4 }}>
+          <span style={{ color: 'var(--muted)', fontSize: 10, margin: '0 6px' }}>·</span>
+          <button onClick={startNewLeague} className="mono" style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, padding: 0, marginTop: -4 }}>
             Set up a new league
           </button>
         </div>
@@ -581,6 +630,29 @@ export default function App() {
         {tab === 'picks' && (
           <>
           {error && <p style={{ color: 'var(--red)', fontSize: 12, marginBottom: 12 }}>{error}</p>}
+
+          {(myForm.streak >= 2 || myForm.accuracy !== null || myForm.profile) && (
+            <div style={{
+              display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16,
+              background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 3, padding: '10px 12px'
+            }}>
+              {myForm.streak >= 2 && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--gold)' }}>
+                  <Flame size={13} /> {myForm.streak}-pick streak
+                </span>
+              )}
+              {myForm.accuracy !== null && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--data)' }}>
+                  <Target size={13} /> {myForm.accuracy}% accuracy
+                </span>
+              )}
+              {myForm.profile && (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--muted)' }}>
+                  <Compass size={13} /> {myForm.profile}
+                </span>
+              )}
+            </div>
+          )}
 
           {gameweeks.length > 0 && (
             <select
@@ -820,6 +892,12 @@ export default function App() {
                           color: f.result === r ? 'var(--bg)' : 'var(--text)'
                         }}>{r}</button>
                       ))}
+                      {f.result && (
+                        <button onClick={() => setResult(f.id, null)} title="Clear result — reopens picks for players" style={{
+                          width: 28, height: 28, borderRadius: 3, border: '1px solid var(--border)', background: 'var(--bg)',
+                          color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12
+                        }}>✕</button>
+                      )}
                       <button onClick={() => deleteFixture(f.id, `${f.home} v ${f.away}`)} title="Delete fixture" style={{
                         width: 28, height: 28, borderRadius: 3, border: '1px solid var(--border)', background: 'var(--bg)',
                         color: 'var(--red)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 4
