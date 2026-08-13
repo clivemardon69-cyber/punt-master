@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Trophy, Users, Plus, LogIn, RefreshCw, Stamp, Trash2, UserMinus, ChevronLeft, Flame, Target, Compass } from 'lucide-react'
+import { Trophy, Users, Plus, LogIn, RefreshCw, Stamp, Trash2, UserMinus, ChevronLeft, ChevronDown, Flame, Target, Compass } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import AdBoard from './AdBoard'
 import BigScreen from './BigScreen'
@@ -81,6 +81,7 @@ export default function App() {
   const [standingsView, setStandingsView] = useState('season')
   const [viewedGwNumber, setViewedGwNumber] = useState(null) // null = "current", set once a specific past gameweek is picked
   const [expandedFixtures, setExpandedFixtures] = useState({}) // fixtureId -> bool, "who picked what" names shown on demand
+  const [expandedMembers, setExpandedMembers] = useState({}) // memberName -> bool, per-player pick breakdown on the Standings tab
   const [resuming, setResuming] = useState(!!(initialPlayer.name && initialPlayer.code))
 
   // Auto-resume straight into the league remembered in this browser tab —
@@ -389,6 +390,22 @@ export default function App() {
         }
       })
       .sort((a, b) => b.points - a.points)
+  }
+
+  // Fixture-by-fixture breakdown for one player — same fixtureFilter as
+  // whichever standings view (season/month) is currently showing, so the
+  // expanded detail always matches the points on screen.
+  function memberBreakdown(memberName, fixtureFilter) {
+    return predictions
+      .filter(p => p.member_name === memberName)
+      .map(p => ({ pick: p, fixture: fixtures.find(f => f.id === p.fixture_id) }))
+      .filter(x => x.fixture && x.fixture.result && (!fixtureFilter || fixtureFilter(x.fixture)))
+      .map(x => {
+        const oddsMap = { H: x.fixture.odds_home, D: x.fixture.odds_draw, A: x.fixture.odds_away }
+        const correct = x.fixture.result === x.pick.pick
+        return { fixture: x.fixture, pick: x.pick.pick, correct, points: correct ? Math.round(oddsMap[x.pick.pick] * 10) / 10 : 0 }
+      })
+      .sort((a, b) => new Date(b.fixture.kickoff || b.fixture.created_at) - new Date(a.fixture.kickoff || a.fixture.created_at))
   }
 
   const now = new Date()
@@ -825,24 +842,54 @@ export default function App() {
                 <div style={{ textAlign: 'center', padding: 40, color: 'var(--muted)', fontSize: 14 }}>
                   {standingsView === 'month' ? `No results in ${monthLabel} yet.` : 'No results yet.'}
                 </div>
-              ) : standings.map((s, i) => (
-                <div key={s.member} style={{
-                  display: 'flex', justifyContent: 'space-between', padding: '12px 16px',
-                  borderBottom: i !== standings.length - 1 ? '1px solid var(--border)' : 'none',
-                  background: i === 0 ? 'rgba(201,162,39,0.1)' : 'transparent'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <span className="mono" style={{ width: 20, fontSize: 12, color: i === 0 ? 'var(--gold)' : 'var(--muted2)' }}>{i + 1}</span>
-                    <span>
-                      <span style={{ fontWeight: 700, color: i === 0 ? 'var(--gold)' : 'var(--text)' }}>{s.member}</span>
-                      {s.team && <span style={{ fontSize: 11, color: 'var(--muted2)', marginLeft: 6 }}>· {s.team}</span>}
-                      {!s.active && <span className="mono" style={{ fontSize: 9, color: 'var(--muted2)', marginLeft: 6, textTransform: 'uppercase' }}>· inactive</span>}
-                    </span>
-                    {i === 0 && <Trophy size={13} color="var(--gold)" />}
+              ) : standings.map((s, i) => {
+                const expanded = !!expandedMembers[s.member]
+                const breakdown = expanded ? memberBreakdown(s.member, standingsView === 'month' ? isThisMonth : null) : []
+                return (
+                  <div key={s.member} style={{ borderBottom: i !== standings.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                    <div
+                      onClick={() => setExpandedMembers(prev => ({ ...prev, [s.member]: !prev[s.member] }))}
+                      style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', cursor: 'pointer',
+                        background: i === 0 ? 'rgba(201,162,39,0.1)' : 'transparent'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span className="mono" style={{ width: 20, fontSize: 12, color: i === 0 ? 'var(--gold)' : 'var(--muted2)' }}>{i + 1}</span>
+                        <span>
+                          <span style={{ fontWeight: 700, color: i === 0 ? 'var(--gold)' : 'var(--text)' }}>{s.member}</span>
+                          {s.team && <span style={{ fontSize: 11, color: 'var(--muted2)', marginLeft: 6 }}>· {s.team}</span>}
+                          {!s.active && <span className="mono" style={{ fontSize: 9, color: 'var(--muted2)', marginLeft: 6, textTransform: 'uppercase' }}>· inactive</span>}
+                        </span>
+                        {i === 0 && <Trophy size={13} color="var(--gold)" />}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span className="mono" style={{ fontWeight: 700, fontSize: 15, color: i === 0 ? 'var(--gold)' : 'var(--data)' }}>{s.points}</span>
+                        <ChevronDown size={14} style={{ color: 'var(--muted2)', transform: expanded ? 'rotate(180deg)' : 'none', flexShrink: 0 }} />
+                      </div>
+                    </div>
+                    {expanded && (
+                      <div style={{ padding: '0 16px 12px', background: 'rgba(0,0,0,0.15)' }}>
+                        {breakdown.length === 0 ? (
+                          <p style={{ fontSize: 11, color: 'var(--muted2)', padding: '8px 0' }}>No results yet.</p>
+                        ) : breakdown.map(b => (
+                          <div key={b.fixture.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, padding: '6px 0', borderTop: '1px solid var(--border)' }}>
+                            <span style={{ color: 'var(--muted)' }}>{b.fixture.home} v {b.fixture.away}</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span className="mono" style={{ color: b.correct ? 'var(--gold)' : 'var(--muted2)' }}>
+                                {b.pick === 'H' ? b.fixture.home : b.pick === 'A' ? b.fixture.away : 'Draw'}
+                              </span>
+                              <span className="mono" style={{ fontWeight: 700, minWidth: 32, textAlign: 'right', color: b.correct ? 'var(--data)' : 'var(--muted2)' }}>
+                                {b.correct ? `+${b.points}` : '0'}
+                              </span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <span className="mono" style={{ fontWeight: 700, fontSize: 15, color: i === 0 ? 'var(--gold)' : 'var(--data)' }}>{s.points}</span>
-                </div>
-              ))}
+                )
+              })}
             </div>
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--muted)', fontSize: 12 }}>
               <Users size={13} /> {members.filter(isActiveMember).length} active of {members.length} member{members.length !== 1 ? 's' : ''}
