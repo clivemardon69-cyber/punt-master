@@ -155,6 +155,7 @@ export default function App() {
 
     setAdminPin(pin)
     rememberPlayer(name.trim(), team, pin, code, password.trim())
+    setError('')
     setLeague(leagueRow)
     setStage('league')
     setBusy(false)
@@ -181,6 +182,7 @@ export default function App() {
     if (joinErr) { setError(joinErr.message); setBusy(false); return }
 
     rememberPlayer(name.trim(), team, adminPin, code, password.trim())
+    setError('')
     setLeague(leagueRow)
     setStage('league')
     setBusy(false)
@@ -425,37 +427,46 @@ export default function App() {
           </div>
 
           <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 3, padding: 20 }}>
+            <label className="mono" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>League code</label>
+            <input value={joinInput} onChange={e => setJoinInput(e.target.value.toUpperCase())} placeholder="e.g. B7K2M" style={{ marginBottom: 16, letterSpacing: 2 }} />
+
             <label className="mono" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Your name</label>
             <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Clive" style={{ marginBottom: 16 }} />
 
-            <label className="mono" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Who do you support? (optional)</label>
-            <select value={team} onChange={e => setTeam(e.target.value)} style={{ marginBottom: 16 }}>
-              <option value="">— No particular team —</option>
-              {TEAMS.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-
-            <label className="mono" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Password (min 6 characters)</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="First time? Sets it. Back again? Logs you in." style={{ marginBottom: 6 }} />
+            <label className="mono" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Password</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter your password" style={{ marginBottom: 6 }} />
             <p style={{ fontSize: 10, color: 'var(--muted2)', lineHeight: 1.4, marginBottom: 16 }}>
-              No password reset — if you forget it, that name's gone for good. Choose one you'll remember.
+              First time with this name in this league? This sets your password (min 6 characters, no reset if forgotten). Already got an account? This logs you straight in.
             </p>
 
-            <label className="mono" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Create a league</label>
-            <input value={newLeagueName} onChange={e => setNewLeagueName(e.target.value)} placeholder="League name" style={{ marginBottom: 8 }} />
-            <input type="password" value={newLeaguePin} onChange={e => setNewLeaguePin(e.target.value)} placeholder="Set an admin PIN (min 6 characters)" style={{ marginBottom: 8 }} />
-            <button className="btn-gold" style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: 8, alignItems: 'center' }} onClick={handleCreateLeague} disabled={busy}>
-              <Plus size={16} /> CREATE LEAGUE
-            </button>
-
-            <div style={{ textAlign: 'center', color: 'var(--muted2)', fontSize: 11, letterSpacing: 2, margin: '16px 0' }}>— OR —</div>
-
-            <label className="mono" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Join with a code</label>
-            <input value={joinInput} onChange={e => setJoinInput(e.target.value.toUpperCase())} placeholder="e.g. B7K2M" style={{ marginBottom: 8, letterSpacing: 2 }} />
-            <button className="btn-outline" style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: 8, alignItems: 'center' }} onClick={handleJoinLeague} disabled={busy}>
-              <LogIn size={16} /> JOIN LEAGUE
+            <button className="btn-gold" style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: 8, alignItems: 'center' }} onClick={handleJoinLeague} disabled={busy}>
+              <LogIn size={16} /> VIEW LEAGUE
             </button>
 
             {error && <p style={{ color: 'var(--red)', fontSize: 12, marginTop: 12 }}>{error}</p>}
+
+            <details style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              <summary className="mono" style={{ cursor: 'pointer', color: 'var(--muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 }}>
+                New here? Create a league instead
+              </summary>
+              <div style={{ marginTop: 14 }}>
+                <label className="mono" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Who do you support? (optional)</label>
+                <select value={team} onChange={e => setTeam(e.target.value)} style={{ marginBottom: 16 }}>
+                  <option value="">— No particular team —</option>
+                  {TEAMS.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+
+                <label className="mono" style={{ display: 'block', fontSize: 11, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>League name</label>
+                <input value={newLeagueName} onChange={e => setNewLeagueName(e.target.value)} placeholder="League name" style={{ marginBottom: 8 }} />
+                <input type="password" value={newLeaguePin} onChange={e => setNewLeaguePin(e.target.value)} placeholder="Set an admin PIN (min 6 characters)" style={{ marginBottom: 8 }} />
+                <p style={{ fontSize: 10, color: 'var(--muted2)', lineHeight: 1.4, marginBottom: 12 }}>
+                  Uses the name and password entered above for your own player account in the new league.
+                </p>
+                <button className="btn-outline" style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: 8, alignItems: 'center' }} onClick={handleCreateLeague} disabled={busy}>
+                  <Plus size={16} /> CREATE LEAGUE
+                </button>
+              </div>
+            </details>
           </div>
 
           <p style={{ textAlign: 'center', color: 'var(--muted2)', fontSize: 10, marginTop: 16, lineHeight: 1.5 }}>
@@ -515,7 +526,7 @@ export default function App() {
         </div>
         <div style={{ maxWidth: 480, margin: '0 auto', textAlign: 'right' }}>
           <button onClick={switchPlayer} className="mono" style={{ background: 'none', border: 'none', color: 'var(--muted2)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, padding: 0, marginTop: -4 }}>
-            Not {name}? Switch player
+            Not {name}? Sign out / switch player
           </button>
         </div>
       </div>
