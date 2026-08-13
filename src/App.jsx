@@ -59,6 +59,7 @@ function isLocked(fixture) {
 export default function App() {
   const initialPlayer = sessionStorageGet()
   const [stage, setStage] = useState('landing')
+  const [showCreatePanel, setShowCreatePanel] = useState(false)
   const [name, setName] = useState(initialPlayer.name)
   const [team, setTeam] = useState(initialPlayer.team)
   const [password, setPassword] = useState(initialPlayer.password)
@@ -112,6 +113,22 @@ export default function App() {
     setLoadError('')
     setViewedGwNumber(null)
     setExpandedFixtures({})
+    setShowCreatePanel(false)
+  }
+
+  function startNewLeague() {
+    forgetPlayer()
+    setLeague(null)
+    setStage('landing')
+    setName('')
+    setTeam('')
+    setPassword('')
+    setAdminPin('')
+    setError('')
+    setLoadError('')
+    setViewedGwNumber(null)
+    setExpandedFixtures({})
+    setShowCreatePanel(true)
   }
 
   // ---------- league bootstrap ----------
@@ -445,7 +462,7 @@ export default function App() {
 
             {error && <p style={{ color: 'var(--red)', fontSize: 12, marginTop: 12 }}>{error}</p>}
 
-            <details style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+            <details open={showCreatePanel} onToggle={e => setShowCreatePanel(e.target.open)} style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
               <summary className="mono" style={{ cursor: 'pointer', color: 'var(--muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 }}>
                 New here? Create a league instead
               </summary>
@@ -527,6 +544,10 @@ export default function App() {
         <div style={{ maxWidth: 480, margin: '0 auto', textAlign: 'right' }}>
           <button onClick={switchPlayer} className="mono" style={{ background: 'none', border: 'none', color: 'var(--muted2)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, padding: 0, marginTop: -4 }}>
             Not {name}? Sign out / switch player
+          </button>
+          <span style={{ color: 'var(--muted2)', fontSize: 10, margin: '0 6px' }}>·</span>
+          <button onClick={startNewLeague} className="mono" style={{ background: 'none', border: 'none', color: 'var(--muted2)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, padding: 0, marginTop: -4 }}>
+            Set up a new league
           </button>
         </div>
       </div>
