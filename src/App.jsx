@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Trophy, Users, Plus, LogIn, RefreshCw, Stamp, Trash2, UserMinus, ChevronLeft, ChevronDown, Flame, Target, Compass } from 'lucide-react'
+import { Trophy, Users, Plus, LogIn, RefreshCw, Stamp, Trash2, UserMinus, ChevronLeft, ChevronDown, Flame, Target, Compass, Award } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import AdBoard from './AdBoard'
 import BigScreen from './BigScreen'
@@ -64,6 +64,7 @@ export default function App() {
   const [team, setTeam] = useState(initialPlayer.team)
   const [password, setPassword] = useState(initialPlayer.password)
   const [adminPin, setAdminPin] = useState(initialPlayer.pin)
+  const [renameInput, setRenameInput] = useState('')
   const [joinInput, setJoinInput] = useState('')
   const [newLeagueName, setNewLeagueName] = useState('')
   const [newLeaguePin, setNewLeaguePin] = useState('')
@@ -339,6 +340,18 @@ export default function App() {
     await refresh()
   }
 
+  async function renameLeague() {
+    if (!adminPin) { setError('Enter the admin PIN below first.'); return }
+    if (!renameInput.trim()) { setError('Enter a new league name.'); return }
+    const { error: renErr } = await supabase.rpc('admin_rename_league', {
+      p_league_id: league.id, p_pin: adminPin, p_name: renameInput.trim(),
+    })
+    if (renErr) { setError(renErr.message); return }
+    setError('')
+    setLeague(prev => ({ ...prev, name: renameInput.trim() }))
+    setRenameInput('')
+  }
+
   // ---------- activity (never deletes anyone — just a display flag) ----------
   function gwNumberForFixture(fixtureId) {
     const fx = fixtures.find(f => f.id === fixtureId)
@@ -415,6 +428,55 @@ export default function App() {
     return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
   }
   const monthLabel = now.toLocaleDateString('en-GB', { month: 'long' })
+
+  // Manager of the Month, but for months that have already finished — a
+  // running "hall of fame" underneath the live current-month toggle above.
+  // Only lists a month once it has at least one decided fixture, and only
+  // months other than the current one (which the toggle already covers).
+  function computeMonthlyWinners() {
+    const monthKeys = new Set()
+    fixtures.forEach(f => {
+      if (!f.result) return
+      const d = new Date(f.kickoff || f.created_at)
+      monthKeys.add(`${d.getFullYear()}-${d.getMonth()}`)
+    })
+    const currentKey = `${now.getFullYear()}-${now.getMonth()}`
+    return Array.from(monthKeys)
+      .filter(key => key !== currentKey)
+      .sort((a, b) => {
+        const [ay, am] = a.split('-').map(Number)
+        const [by, bm] = b.split('-').map(Number)
+        return (by * 12 + bm) - (ay * 12 + am)
+      })
+      .map(key => {
+        const [y, m] = key.split('-').map(Number)
+        const filter = f => {
+          const d = new Date(f.kickoff || f.created_at)
+          return d.getFullYear() === y && d.getMonth() === m
+        }
+        const monthStandings = computeStandings(filter)
+        const top = monthStandings.length ? monthStandings[0].points : 0
+        const winners = monthStandings.filter(s => s.points === top)
+        const label = new Date(y, m, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+        return { key, label, winners, points: top }
+      })
+      .filter(mw => mw.points > 0)
+  }
+  const monthlyWinners = computeMonthlyWinners()
+
+  // "Keeps the match ball" — whoever topped the most recently completed
+  // gameweek (not the live one, which usually has no results yet).
+  function computeMatchBallWinner() {
+    const candidateGws = gameweeks.filter(g => fixtures.some(f => f.gameweek_id === g.id && f.result))
+    if (!candidateGws.length) return null
+    const latestGw = candidateGws[0] // gameweeks already come back number desc
+    const gwStandings = computeStandings(f => f.gameweek_id === latestGw.id)
+    const top = gwStandings.length ? gwStandings[0].points : 0
+    const winners = gwStandings.filter(s => s.points === top)
+    if (!top || !winners.length) return null
+    return { gwNumber: latestGw.number, winners, points: top }
+  }
+  const matchBall = computeMatchBallWinner()
 
   // Personal form summary — streak, accuracy, and a "risk profile" archetype
   // based on how favoured/unfavoured the player's picks tend to be. All
@@ -824,6 +886,16 @@ export default function App() {
 
         {tab === 'table' && (
           <div>
+            {matchBall && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontSize: 12, color: 'var(--gold)' }}>
+                <Award size={15} style={{ flexShrink: 0 }} />
+                <span>
+                  {matchBall.winners.map(w => w.member).join(' & ')} {matchBall.winners.length > 1 ? 'take' : 'takes'} the match ball home
+                  — top of Gameweek {matchBall.gwNumber} ({matchBall.points} pts)
+                </span>
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: 4, marginBottom: 12, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 3, padding: 4 }}>
               {[{ key: 'season', label: 'Season' }, { key: 'month', label: `${monthLabel} (Manager of the Month)` }].map(v => (
                 <button key={v.key} onClick={() => setStandingsView(v.key)} style={{
@@ -897,6 +969,29 @@ export default function App() {
             <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 6, color: 'var(--muted)', fontSize: 12 }}>
               <Users size={13} /> {members.filter(isActiveMember).length} active of {members.length} member{members.length !== 1 ? 's' : ''}
             </div>
+
+            {monthlyWinners.length > 0 && (
+              <div style={{ marginTop: 20 }}>
+                <div className="mono" style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Manager of the month — past winners</div>
+                <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                  {monthlyWinners.map((mw, i) => (
+                    <div key={mw.key} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', fontSize: 13,
+                      borderBottom: i !== monthlyWinners.length - 1 ? '1px solid var(--border)' : 'none'
+                    }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Award size={14} style={{ color: 'var(--gold)', flexShrink: 0 }} />
+                        <span style={{ color: 'var(--muted)' }}>{mw.label}</span>
+                      </span>
+                      <span>
+                        <span style={{ fontWeight: 700 }}>{mw.winners.map(w => w.member).join(' & ')}</span>
+                        <span className="mono" style={{ color: 'var(--data)', marginLeft: 8 }}>{mw.points} pts</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -913,6 +1008,19 @@ export default function App() {
               <p style={{ fontSize: 11, color: 'var(--muted2)', marginTop: 6 }}>
                 Checked by the database on every fixture, result, and gameweek change — not just this screen.
               </p>
+            </div>
+
+            <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 3, padding: 16 }}>
+              <div className="mono" style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>League name</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  value={renameInput}
+                  onChange={e => setRenameInput(e.target.value)}
+                  placeholder={league.name}
+                  style={{ flex: 1 }}
+                />
+                <button onClick={renameLeague} style={{ fontSize: 12, background: 'var(--border)', border: 'none', color: 'var(--text)', padding: '0 16px', borderRadius: 3, flexShrink: 0 }}>Rename</button>
+              </div>
             </div>
 
             <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 3, padding: 16 }}>

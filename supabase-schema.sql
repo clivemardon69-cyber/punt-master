@@ -224,6 +224,26 @@ begin
 end;
 $$;
 
+-- Lets any league's own admin fix a typo'd or accidental league name
+-- themselves — the only other way to change it is direct database access,
+-- which only the app owner has, not every friend who's started their own
+-- league through the app.
+create or replace function admin_rename_league(p_league_id uuid, p_pin text, p_name text)
+returns void
+language plpgsql
+security definer
+as $$
+begin
+  if not check_admin_pin(p_league_id, p_pin) then
+    raise exception 'Incorrect admin PIN';
+  end if;
+  if p_name is null or trim(p_name) = '' then
+    raise exception 'League name cannot be empty';
+  end if;
+  update leagues set name = trim(p_name) where id = p_league_id;
+end;
+$$;
+
 grant execute on function set_admin_pin(uuid, text) to anon, authenticated;
 grant execute on function check_admin_pin(uuid, text) to anon, authenticated;
 grant execute on function admin_new_gameweek(uuid, text, int) to anon, authenticated;
@@ -231,6 +251,7 @@ grant execute on function admin_add_fixture(uuid, text, uuid, text, text, timest
 grant execute on function admin_set_result(uuid, text, uuid, text) to anon, authenticated;
 grant execute on function admin_delete_fixture(uuid, text, uuid) to anon, authenticated;
 grant execute on function admin_remove_member(uuid, text, text) to anon, authenticated;
+grant execute on function admin_rename_league(uuid, text, text) to anon, authenticated;
 
 -- Column-level lock: even a select('*') from the app can never return the
 -- PIN hash to a browser. check_admin_pin() can still read it internally
