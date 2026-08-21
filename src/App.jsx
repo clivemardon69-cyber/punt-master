@@ -28,6 +28,20 @@ function impliedPct(odds) {
 const LOCK_MINUTES_BEFORE_KICKOFF = 5
 const INACTIVE_AFTER_ROUNDS = 8
 
+// A bit of variety on the "Confirm my picks" success message, since
+// players will see it every single week — one gets picked at random each
+// time rather than showing the same line all season.
+const CONFIRM_MESSAGES = [
+  gw => `You're in — good luck with Gameweek ${gw}.`,
+  gw => `Locked in. Go on, start dreaming about Manager of the Month.`,
+  gw => `All set for Gameweek ${gw} — may the odds be with you.`,
+  () => `Done and dusted. Let's see what the weekend brings.`,
+  () => `Picks confirmed. Somewhere, an underdog is hoping you backed them.`,
+  gw => `You're sorted for Gameweek ${gw} — fingers crossed for a few upsets.`,
+  () => `Nailed on. Now the hard part — the actual watching.`,
+  () => `In the book — go and take that match ball home.`,
+]
+
 // Real browser storage — survives new tabs, closing the browser, restarting
 // the phone. Per browser/device, same as any "remember me" — a different
 // device, or clearing site data, means signing in again. "Switch player"
@@ -681,7 +695,8 @@ export default function App() {
   function confirmPicks() {
     const missing = viewedFixtures.filter(f => !f.result && !pickFor(f.id))
     if (missing.length === 0) {
-      setConfirmMsg({ ok: true, text: `All set — your ${viewedFixtures.length} pick${viewedFixtures.length !== 1 ? 's' : ''} for Gameweek ${viewedGw?.number} are saved.` })
+      const line = CONFIRM_MESSAGES[Math.floor(Math.random() * CONFIRM_MESSAGES.length)](viewedGw?.number)
+      setConfirmMsg({ ok: true, text: line })
     } else {
       setConfirmMsg({ ok: false, text: `Still missing a pick for: ${missing.map(f => `${f.home} v ${f.away}`).join(', ')}` })
     }
