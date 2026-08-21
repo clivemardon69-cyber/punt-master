@@ -69,6 +69,7 @@ export default function App() {
   const [newLeagueName, setNewLeagueName] = useState('')
   const [newLeaguePin, setNewLeaguePin] = useState('')
   const [error, setError] = useState('')
+  const [confirmMsg, setConfirmMsg] = useState(null) // { ok: bool, text: string } — "Confirm my picks" button result
   const [loadError, setLoadError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -258,6 +259,7 @@ export default function App() {
     })
     if (pickErr) { setError(pickErr.message); return }
     setError('')
+    setConfirmMsg(null)
     await refresh()
   }
 
@@ -671,6 +673,19 @@ export default function App() {
   const standings = standingsView === 'month' ? monthStandings : seasonStandings
   const myPicks = predictions.filter(p => p.member_name === name)
   const pickFor = (fixtureId) => myPicks.find(p => p.fixture_id === fixtureId)?.pick
+
+  // Every pick already saves the instant it's clicked — this button
+  // doesn't do any saving itself, it just gives a clear, deliberate
+  // "yes, they're really in" confirmation, and names exactly what's
+  // still missing if anything is, rather than a vague reassurance.
+  function confirmPicks() {
+    const missing = viewedFixtures.filter(f => !f.result && !pickFor(f.id))
+    if (missing.length === 0) {
+      setConfirmMsg({ ok: true, text: `All set — your ${viewedFixtures.length} pick${viewedFixtures.length !== 1 ? 's' : ''} for Gameweek ${viewedGw?.number} are saved.` })
+    } else {
+      setConfirmMsg({ ok: false, text: `Still missing a pick for: ${missing.map(f => `${f.home} v ${f.away}`).join(', ')}` })
+    }
+  }
   const isAdmin = name.trim() === league.admin_name
   const visibleTabs = isAdmin ? ['picks', 'table', 'admin'] : ['picks', 'table']
 
@@ -765,6 +780,7 @@ export default function App() {
               onChange={e => {
                 const n = Number(e.target.value)
                 setViewedGwNumber(n === gameweek?.number ? null : n)
+                setConfirmMsg(null)
               }}
               style={{ marginBottom: 16 }}
             >
@@ -870,6 +886,23 @@ export default function App() {
                   </div>
                 )
               })}
+            </div>
+          )}
+
+          {viewedFixtures.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <button
+                onClick={confirmPicks}
+                className="btn-outline"
+                style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: 8, alignItems: 'center' }}
+              >
+                Confirm my picks
+              </button>
+              {confirmMsg && (
+                <p style={{ fontSize: 12, marginTop: 10, color: confirmMsg.ok ? 'var(--data)' : 'var(--red)' }}>
+                  {confirmMsg.text}
+                </p>
+              )}
             </div>
           )}
 
