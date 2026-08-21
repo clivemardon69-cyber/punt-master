@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Trophy, Users, Plus, LogIn, RefreshCw, Stamp, Trash2, UserMinus, ChevronLeft, ChevronDown, Flame, Target, Compass, Award } from 'lucide-react'
+import { Trophy, Users, Plus, LogIn, RefreshCw, Stamp, Trash2, UserMinus, ChevronLeft, ChevronDown, Flame, Target, Compass, Award, Check } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import AdBoard from './AdBoard'
 import BigScreen from './BigScreen'
@@ -651,6 +651,14 @@ export default function App() {
   }
   const currentFixtures = sortByKickoff(fixtures.filter(f => f.gameweek_id === gameweek?.id))
 
+  // Has this member picked every fixture in the live current gameweek?
+  // Positive-only signal on the Members list — a quiet tick when done,
+  // nothing at all when not, rather than calling anyone out.
+  function hasCompletedPicks(memberName) {
+    if (!currentFixtures.length) return false
+    return currentFixtures.every(f => predictions.some(p => p.fixture_id === f.id && p.member_name === memberName))
+  }
+
   // Which gameweek the Gameweek tab is showing — defaults to the current
   // one, but a player can look back at any past round, Super 6-style.
   const viewedGw = viewedGwNumber === null ? gameweek : (gameweeks.find(g => g.number === viewedGwNumber) || gameweek)
@@ -980,12 +988,15 @@ export default function App() {
                       borderBottom: i !== members.length - 1 ? '1px solid var(--border)' : 'none'
                     }}>
                       <span>{m.name}{m.team && <span style={{ fontSize: 11, color: 'var(--muted2)', marginLeft: 6 }}>· {m.team}</span>}</span>
-                      {!isActiveMember(m) && <span className="mono" style={{ fontSize: 9, color: 'var(--muted2)', textTransform: 'uppercase' }}>inactive</span>}
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {hasCompletedPicks(m.name) && <Check size={14} color="var(--data)" title="Picks in for this gameweek" />}
+                        {!isActiveMember(m) && <span className="mono" style={{ fontSize: 9, color: 'var(--muted2)', textTransform: 'uppercase' }}>inactive</span>}
+                      </span>
                     </div>
                   ))}
                 </div>
                 <p style={{ fontSize: 10, color: 'var(--muted2)', marginTop: 6 }}>
-                  Just who's joined — picks stay hidden until each match kicks off.
+                  A tick means their picks are in for this gameweek — picks themselves stay hidden until each match kicks off.
                 </p>
               </div>
             )}
