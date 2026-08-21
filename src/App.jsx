@@ -970,6 +970,26 @@ export default function App() {
               <Users size={13} /> {members.filter(isActiveMember).length} active of {members.length} member{members.length !== 1 ? 's' : ''}
             </div>
 
+            {members.length > 0 && (
+              <div style={{ marginTop: 20 }}>
+                <div className="mono" style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Members</div>
+                <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                  {members.map((m, i) => (
+                    <div key={m.id} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', fontSize: 13,
+                      borderBottom: i !== members.length - 1 ? '1px solid var(--border)' : 'none'
+                    }}>
+                      <span>{m.name}{m.team && <span style={{ fontSize: 11, color: 'var(--muted2)', marginLeft: 6 }}>· {m.team}</span>}</span>
+                      {!isActiveMember(m) && <span className="mono" style={{ fontSize: 9, color: 'var(--muted2)', textTransform: 'uppercase' }}>inactive</span>}
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: 10, color: 'var(--muted2)', marginTop: 6 }}>
+                  Just who's joined — picks stay hidden until each match kicks off.
+                </p>
+              </div>
+            )}
+
             {monthlyWinners.length > 0 && (
               <div style={{ marginTop: 20 }}>
                 <div className="mono" style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Manager of the month — past winners</div>
