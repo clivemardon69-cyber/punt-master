@@ -10,7 +10,20 @@ const SCREEN_SPONSOR = 'Punt Master'
 // flips to full-time results once the admin enters them. Read-only display,
 // no interaction, sits above the tabs on the league page.
 export default function BigScreen({ name, fixtures, gameweek }) {
-  const withResults = (fixtures || []).filter(f => f.result)
+  // Only this gameweek's own fixtures — otherwise an older, already
+  // finished round's results keep showing up here under the current
+  // gameweek's heading once more than one round has results in. Sorted
+  // by kick-off time (earliest first), not just whichever order they
+  // were added in.
+  const gwFixtures = (fixtures || [])
+    .filter(f => f.gameweek_id === gameweek?.id)
+    .slice()
+    .sort((a, b) => {
+      if (!a.kickoff) return 1
+      if (!b.kickoff) return -1
+      return new Date(a.kickoff) - new Date(b.kickoff)
+    })
+  const withResults = gwFixtures.filter(f => f.result)
   const playerName = name ? name.toUpperCase() : 'PLAYER'
 
   let heading, lines
@@ -21,7 +34,7 @@ export default function BigScreen({ name, fixtures, gameweek }) {
       const winner = f.result === 'H' ? f.home : f.away
       return `${f.home} v ${f.away} — ${winner.toUpperCase()} WIN`
     })
-  } else if ((fixtures || []).length > 0) {
+  } else if (gwFixtures.length > 0) {
     heading = `WELCOME BACK, ${playerName}`
     lines = [
       `GAMEWEEK ${gameweek?.number ?? ''} — PICKS OPEN`,
