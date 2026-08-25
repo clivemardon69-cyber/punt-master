@@ -96,6 +96,7 @@ export default function App() {
   const [tab, setTab] = useState('picks')
   const [standingsView, setStandingsView] = useState('season')
   const [viewedGwNumber, setViewedGwNumber] = useState(null) // null = "current", set once a specific past gameweek is picked
+  const [adminViewedGwNumber, setAdminViewedGwNumber] = useState(null) // same idea, for the Admin tab's "Enter results" — lets results for an older round be entered/fixed after a newer gameweek's already been started
   const [expandedFixtures, setExpandedFixtures] = useState({}) // fixtureId -> bool, "who picked what" names shown on demand
   const [expandedMembers, setExpandedMembers] = useState({}) // memberName -> bool, per-player pick breakdown on the Standings tab
   const [resuming, setResuming] = useState(!!(initialPlayer.name && initialPlayer.code))
@@ -667,6 +668,14 @@ export default function App() {
   }
   const currentFixtures = sortByKickoff(fixtures.filter(f => f.gameweek_id === gameweek?.id))
 
+  // Which gameweek the Admin tab's "Enter results" is showing — defaults
+  // to the latest, but can be switched back to any earlier round. Needed
+  // because starting Gameweek 2 doesn't mean Gameweek 1's results are
+  // necessarily all in yet — a late or missed result still needs a way
+  // to be entered without it being "current" any more.
+  const adminViewedGw = adminViewedGwNumber === null ? gameweek : (gameweeks.find(g => g.number === adminViewedGwNumber) || gameweek)
+  const adminViewedFixtures = sortByKickoff(fixtures.filter(f => f.gameweek_id === adminViewedGw?.id))
+
   // Has this member picked every fixture in the live current gameweek?
   // Positive-only signal on the Members list — a quiet tick when done,
   // nothing at all when not, rather than calling anyone out.
@@ -1133,10 +1142,28 @@ export default function App() {
               {error && <p style={{ color: 'var(--red)', fontSize: 12, marginTop: 8 }}>{error}</p>}
             </div>
 
-            {currentFixtures.length > 0 && (
+            {gameweeks.length > 0 && (
               <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 3, padding: 16 }}>
                 <div className="mono" style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 12 }}>Enter results</div>
-                {currentFixtures.map(f => (
+                {gameweeks.length > 1 && (
+                  <select
+                    value={adminViewedGw?.number ?? ''}
+                    onChange={e => {
+                      const n = Number(e.target.value)
+                      setAdminViewedGwNumber(n === gameweek?.number ? null : n)
+                    }}
+                    style={{ marginBottom: 12 }}
+                  >
+                    {gameweeks.map(g => (
+                      <option key={g.id} value={g.number}>
+                        Gameweek {g.number}{g.id === gameweek?.id ? ' (current)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {adminViewedFixtures.length === 0 ? (
+                  <p style={{ fontSize: 12, color: 'var(--muted2)' }}>No fixtures in this gameweek yet.</p>
+                ) : adminViewedFixtures.map(f => (
                   <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14, borderBottom: '1px solid var(--border)', padding: '8px 0' }}>
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: 8 }}>{f.home} v {f.away}</span>
                     <div style={{ display: 'flex', gap: 4, flexShrink: 0, alignItems: 'center' }}>
