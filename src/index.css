@@ -214,6 +214,14 @@ body { padding-bottom: 78px; }
   right: 0;
   bottom: 0;
   z-index: 40;
+  /* Forces its own compositing layer — without this, iOS Safari can
+     visually detach a fixed element mid-scroll and leave it sitting in
+     the wrong place until the scroll settles. */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   display: flex;
   align-items: center;
   gap: 10px;

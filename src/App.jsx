@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Trophy, Users, Plus, LogIn, RefreshCw, Stamp, Trash2, UserMinus, ChevronLeft, ChevronDown, Flame, Target, Compass, Award, Check } from 'lucide-react'
+import { Trophy, Users, Plus, LogIn, RefreshCw, Stamp, Trash2, UserMinus, ChevronLeft, ChevronDown, Flame, Target, Compass, Award, Check, Pencil } from 'lucide-react'
 import { supabase } from './supabaseClient'
 import AdBoard from './AdBoard'
 import BigScreen from './BigScreen'
@@ -346,6 +346,19 @@ export default function App() {
     await refresh()
   }
 
+  async function renameMember(oldName) {
+    if (!adminPin) { setError('Enter the admin PIN below first.'); return }
+    const newName = window.prompt(`New name for ${oldName}:`, oldName)
+    if (newName === null) return // cancelled
+    if (!newName.trim()) { setError('Enter a name.'); return }
+    const { error: renErr } = await supabase.rpc('admin_rename_member', {
+      p_league_id: league.id, p_pin: adminPin, p_old_name: oldName, p_new_name: newName.trim(),
+    })
+    if (renErr) { setError(renErr.message); return }
+    setError('')
+    await refresh()
+  }
+
   async function startNewGameweek() {
     if (!adminPin) { setError('Enter the admin PIN below first.'); return }
     const nextNum = (gameweek?.number || 0) + 1
@@ -439,12 +452,24 @@ export default function App() {
   }
 
   const now = new Date()
-  function isThisMonth(fixture) {
-    if (!fixture.kickoff) return false
-    const d = new Date(fixture.kickoff)
-    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth()
+  function monthKey(d) { return `${d.getFullYear()}-${d.getMonth()}` }
+  const currentMonthKey = monthKey(now)
+
+  // Every distinct month with at least one fixture, newest first — powers
+  // the Manager of the Month picker so any month can be selected and
+  // viewed directly, not just whichever one happens to be live right now.
+  const availableMonths = Array.from(new Set(
+    fixtures.filter(f => f.kickoff).map(f => monthKey(new Date(f.kickoff)))
+  )).sort((a, b) => {
+    const [ay, am] = a.split('-').map(Number)
+    const [by, bm] = b.split('-').map(Number)
+    return (by * 12 + bm) - (ay * 12 + am)
+  })
+  function monthLabelFor(key) {
+    const [y, m] = key.split('-').map(Number)
+    return new Date(y, m, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
   }
-  const monthLabel = now.toLocaleDateString('en-GB', { month: 'long' })
+  const monthLabel = standingsView !== 'season' ? monthLabelFor(standingsView) : ''
 
   // Manager of the Month, but for months that have already finished — a
   // running "hall of fame" underneath the live current-month toggle above.
@@ -480,6 +505,30 @@ export default function App() {
       .filter(mw => mw.points > 0)
   }
   const monthlyWinners = computeMonthlyWinners()
+
+  // A "league" for Manager of the Month itself — ranked by how many
+  // months each player has won, tie-broken by total correct picks across
+  // the whole season (not points, since this is specifically about
+  // picking winners consistently, not the size of any single upset).
+  function computeMotmLeaderboard() {
+    const wins = {}
+    const correctCounts = {}
+    predictions.forEach(p => {
+      const fx = fixtures.find(f => f.id === p.fixture_id)
+      if (fx && fx.result === p.pick) {
+        correctCounts[p.member_name] = (correctCounts[p.member_name] || 0) + 1
+      }
+    })
+    monthlyWinners.forEach(mw => {
+      mw.winners.forEach(w => {
+        wins[w.member] = (wins[w.member] || 0) + 1
+      })
+    })
+    return Object.entries(wins)
+      .map(([member, count]) => ({ member, wins: count, correct: correctCounts[member] || 0 }))
+      .sort((a, b) => b.wins - a.wins || b.correct - a.correct)
+  }
+  const motmLeaderboard = computeMotmLeaderboard()
 
   // "Keeps the match ball" — whoever topped the most recently completed
   // gameweek (not the live one, which usually has no results yet).
@@ -692,8 +741,9 @@ export default function App() {
   const gameweekPoints = viewedGw ? computeStandings(f => f.gameweek_id === viewedGw.id) : []
 
   const seasonStandings = computeStandings()
-  const monthStandings = computeStandings(isThisMonth)
-  const standings = standingsView === 'month' ? monthStandings : seasonStandings
+  const standings = standingsView === 'season'
+    ? seasonStandings
+    : computeStandings(f => f.kickoff && monthKey(new Date(f.kickoff)) === standingsView)
   const myPicks = predictions.filter(p => p.member_name === name)
   const pickFor = (fixtureId) => myPicks.find(p => p.fixture_id === fixtureId)?.pick
 
@@ -961,26 +1011,38 @@ export default function App() {
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 4, marginBottom: 12, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 3, padding: 4 }}>
-              {[{ key: 'season', label: 'Season' }, { key: 'month', label: `${monthLabel} (Manager of the Month)` }].map(v => (
-                <button key={v.key} onClick={() => setStandingsView(v.key)} style={{
-                  flex: 1, padding: '6px 0', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-                  borderRadius: 3, border: 'none', background: standingsView === v.key ? 'var(--gold)' : 'transparent',
-                  color: standingsView === v.key ? 'var(--bg)' : 'var(--muted)'
-                }}>
-                  {v.label}
-                </button>
-              ))}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <button onClick={() => setStandingsView('season')} style={{
+                flex: 1, padding: '6px 0', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
+                borderRadius: 3, border: 'none', background: standingsView === 'season' ? 'var(--gold)' : 'var(--panel)',
+                color: standingsView === 'season' ? 'var(--bg)' : 'var(--muted)'
+              }}>
+                Season
+              </button>
+              {availableMonths.length > 0 && (
+                <select
+                  value={standingsView !== 'season' ? standingsView : ''}
+                  onChange={e => setStandingsView(e.target.value || currentMonthKey)}
+                  style={{ flex: 2, fontWeight: standingsView !== 'season' ? 700 : 400 }}
+                >
+                  <option value="" disabled>Manager of the month…</option>
+                  {availableMonths.map(key => (
+                    <option key={key} value={key}>
+                      {monthLabelFor(key)}{key === currentMonthKey ? ' (current)' : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 3, overflow: 'hidden' }}>
               {standings.length === 0 || standings.every(s => s.points === 0) ? (
                 <div style={{ textAlign: 'center', padding: 40, color: 'var(--muted)', fontSize: 14 }}>
-                  {standingsView === 'month' ? `No results in ${monthLabel} yet.` : 'No results yet.'}
+                  {standingsView !== 'season' ? `No results in ${monthLabel} yet.` : 'No results yet.'}
                 </div>
               ) : standings.map((s, i) => {
                 const expanded = !!expandedMembers[s.member]
-                const breakdown = expanded ? memberBreakdown(s.member, standingsView === 'month' ? isThisMonth : null) : []
+                const breakdown = expanded ? memberBreakdown(s.member, standingsView !== 'season' ? (f => f.kickoff && monthKey(new Date(f.kickoff)) === standingsView) : null) : []
                 // Alternating band per player (not per row) so a long scroll
                 // through several people's expanded picks still makes it
                 // obvious where one player's block ends and the next
@@ -1058,9 +1120,39 @@ export default function App() {
               </div>
             )}
 
+            {motmLeaderboard.length > 0 && (
+              <div style={{ marginTop: 20 }}>
+                <div className="mono" style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Manager of the month — leaderboard</div>
+                <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                  {motmLeaderboard.map((row, i) => (
+                    <div key={row.member} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', fontSize: 13,
+                      borderBottom: i !== motmLeaderboard.length - 1 ? '1px solid var(--border)' : 'none',
+                      background: i === 0 ? 'rgba(201,162,39,0.1)' : 'transparent'
+                    }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span className="mono" style={{ width: 16, fontSize: 12, color: i === 0 ? 'var(--gold)' : 'var(--muted2)' }}>{i + 1}</span>
+                        <span style={{ fontWeight: i === 0 ? 700 : 400, color: i === 0 ? 'var(--gold)' : 'var(--text)' }}>{row.member}</span>
+                        {i === 0 && <Trophy size={13} color="var(--gold)" />}
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span className="mono" style={{ fontSize: 11, color: 'var(--muted2)' }}>{row.correct} correct</span>
+                        <span className="mono" style={{ fontWeight: 700, fontSize: 14, color: i === 0 ? 'var(--gold)' : 'var(--data)' }}>
+                          {row.wins} {row.wins === 1 ? 'title' : 'titles'}
+                        </span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ fontSize: 10, color: 'var(--muted2)', marginTop: 6 }}>
+                  Ties on titles won are broken by total correct picks across the season.
+                </p>
+              </div>
+            )}
+
             {monthlyWinners.length > 0 && (
               <div style={{ marginTop: 20 }}>
-                <div className="mono" style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Manager of the month — past winners</div>
+                <div className="mono" style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>Manager of the month — by month</div>
                 <div style={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 3, overflow: 'hidden' }}>
                   {monthlyWinners.map((mw, i) => (
                     <div key={mw.key} style={{
@@ -1199,10 +1291,16 @@ export default function App() {
                 <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 14, borderBottom: '1px solid var(--border)', padding: '8px 0' }}>
                   <span>{m.name}{m.team && <span style={{ fontSize: 11, color: 'var(--muted2)', marginLeft: 6 }}>· {m.team}</span>}</span>
                   {m.name !== league.admin_name && (
-                    <button onClick={() => removeMember(m.name)} title="Remove member" style={{
-                      width: 28, height: 28, borderRadius: 3, border: '1px solid var(--border)', background: 'var(--bg)',
-                      color: 'var(--red)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-                    }}><UserMinus size={13} /></button>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <button onClick={() => renameMember(m.name)} title="Fix a misspelled name — keeps their picks and points" style={{
+                        width: 28, height: 28, borderRadius: 3, border: '1px solid var(--border)', background: 'var(--bg)',
+                        color: 'var(--muted)', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}><Pencil size={13} /></button>
+                      <button onClick={() => removeMember(m.name)} title="Remove member" style={{
+                        width: 28, height: 28, borderRadius: 3, border: '1px solid var(--border)', background: 'var(--bg)',
+                        color: 'var(--red)', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}><UserMinus size={13} /></button>
+                    </div>
                   )}
                 </div>
               ))}
